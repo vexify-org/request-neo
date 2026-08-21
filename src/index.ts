@@ -89,7 +89,7 @@ export type { OpenApiRoute, MetricStore, OpenApiBuilderOptions } from './observa
 
 // 包元信息
 export const NAME = 'request-neo';
-export const VERSION = '2026.1.0';
+export const VERSION = '1.0.0';
 export const TAGLINE = 'Powered By Vexify 2026';
 
 export default NeoApp;

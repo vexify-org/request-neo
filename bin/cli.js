@@ -12,7 +12,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const VERSION = '2026.1.0';
+const VERSION = '1.0.0';
 const TAGLINE = 'Powered By Vexify 2026';
 
 const HELP = `
