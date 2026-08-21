@@ -1,0 +1,35 @@
+{
+  "name": "request-neo",
+  "version": "2026.1.0",
+  "description": "Powered By Vexify 2026. Flask/FastAPI 味的 Node.js HTTP 框架：协议、路由、校验、中间件、实时、安全、可观测一体。",
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "bin"],
+  "bin": {
+    "request-neo": "./bin/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "prepublishOnly": "npm run build",
+    "test": "node test/e2e.test.js",
+    "start": "node examples/server.js"
+  },
+  "keywords": ["http", "framework", "router", "websocket", "sse", "openapi", "middleware", "flask", "fastapi"],
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}
