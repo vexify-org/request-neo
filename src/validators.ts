@@ -419,7 +419,7 @@ export class ObjValidator<S extends Record<string, Validator<any>>> extends Vali
   }
 }
 
-export class ArrValidator<E extends Validator<any>> extends Validator<E['infer'][]> {
+export class ArrValidator<E extends Validator<any>> extends Validator<ReturnType<E['infer']>[]> {
   readonly typeName = 'array';
   private elem: E;
   private minLen?: number;
@@ -441,21 +441,21 @@ export class ArrValidator<E extends Validator<any>> extends Validator<E['infer']
   arrMax(n: number): this {
     const c = this.duplicate(); c.maxLen = n; return c as this;
   }
-  infer(): E['infer'][] {
-    return [] as E['infer'][];
+  infer(): ReturnType<E['infer']>[] {
+    return [] as ReturnType<E['infer']>[];
   }
   wireType(): string {
     return 'array';
   }
-  parseCore(value: unknown, fail: Fail, path: string[]): E['infer'][] {
+  parseCore(value: unknown, fail: Fail, path: string[]): ReturnType<E['infer']>[] {
     if (!Array.isArray(value)) {
       fail.push(path, 'expected an array');
       return [];
     }
-    const out: E['infer'][] = [];
+    const out: ReturnType<E['infer']>[] = [];
     for (let i = 0; i < value.length; i++) {
-      const sub = this.elem.parse(value[i], [...path, String(i)]);
-      if (sub !== undefined) out.push(sub);
+      const sub: unknown = this.elem.parse(value[i], [...path, String(i)]);
+      if (sub !== undefined) out.push(sub as ReturnType<E['infer']>);
     }
     if (this.minLen !== undefined && out.length < this.minLen) fail.push(path, `must have at least ${this.minLen} items`);
     if (this.maxLen !== undefined && out.length > this.maxLen) fail.push(path, `must have at most ${this.maxLen} items`);

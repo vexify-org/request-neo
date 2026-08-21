@@ -86,12 +86,10 @@ function codeForStatus(status: number): string {
   return m[status] ?? 'http_error';
 }
 
-const util = require('node:util') as { isError(v: unknown): boolean };
-
 /** 把任意 throw 归一为 HttpError（0-9 feature 层统一错误出口） */
 export function normalizeError(err: unknown): HttpError {
   if (err instanceof HttpError) return err;
-  if (util.isError(err)) {
+  if (err instanceof Error) {
     const e = err as Error & { status?: number; statusCode?: number };
     const status = e.status ?? e.statusCode;
     if (typeof status === 'number' && status >= 400 && status < 600) {

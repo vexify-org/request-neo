@@ -36,13 +36,13 @@ export function openSSE(res: ServerResponse, connectOpts?: {
   heartbeatMs?: number;
   retryMs?: number;
 }): SSEStream {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache, no-transform',
-    'Connection': 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-  res.write('\n'); // 开篇空行有时对部分客户端必要
+  // 用 setHeader 保留中间件已设的安全头
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
   if (connectOpts?.retryMs !== undefined) {
     res.write(`retry: ${connectOpts.retryMs}\n\n`);
   }

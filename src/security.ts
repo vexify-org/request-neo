@@ -42,10 +42,10 @@ export function cors(opts: CorsOptions = {}): CtxMiddleware {
       allowOrigin = reqOrigin && origin.includes(reqOrigin) ? reqOrigin : false;
     } else if (typeof origin === 'function') {
       const r = origin(reqOrigin ?? '');
-      allowOrigin = r === true ? reqOrigin ?? '*' : r === false ? false : r;
+      allowOrigin = r === true ? reqOrigin ?? '*' : r === false ? false : Array.isArray(r) ? (reqOrigin && r.includes(reqOrigin) ? reqOrigin : false) : r;
     }
 
-    if (allowOrigin !== false) {
+    if (allowOrigin !== false && allowOrigin !== '') {
       h.setHeader('Access-Control-Allow-Origin', String(allowOrigin));
       if (credentials) h.setHeader('Access-Control-Allow-Credentials', 'true');
       else h.removeHeader('Access-Control-Allow-Credentials');

@@ -77,9 +77,9 @@ export function buildOpenApi(routes: OpenApiRoute[], opts: {
 } = {}): Record<string, unknown> {
   const paths: Record<string, any> = {};
   for (const r of routes) {
-    // 转成 openapi 路径
+    // 转成 openapi 路径（:param 与 :param(regex) 一律归一为 {name}）
     const opath = r.path
-      .replace(/:([A-Za-z0-9_]+)\(([^)]*)\)/g, '{$1: $2 }') // 正则参数（近似）
+      .replace(/:([A-Za-z0-9_]+)\((?:\\.|[^)])*\)/g, '{$1}')
       .replace(/:([A-Za-z0-9_]+)/g, '{$1}');
     if (!paths[opath]) paths[opath] = {};
     const m = r.method.toLowerCase();

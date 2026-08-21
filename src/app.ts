@@ -47,6 +47,7 @@ export interface RouteSchema {
   summary?: string;
   description?: string;
   tags?: string[];
+  alias?: string;
   body?: Validator<any>;
   params?: Record<string, Validator<any>>;
   query?: Record<string, Validator<any>>;
@@ -99,7 +100,7 @@ export class NeoApp<Deps = Record<string, unknown>> {
   private _wsServerGet(): WSServer {
     return this.wsServer;
   }
-  private sseRoutes = new Map<string, (ctx: Context, stream: SSEStream) => unknown>();
+  private sseRoutes = new Map<string, { handler: (ctx: Context, stream: SSEStream) => unknown; opts?: { heartbeatMs?: number } }>();
   private staticRoutes: Array<{ prefix: string; dir: string }> = [];
   private routeRecords: Array<OpenApiRoute & { alias?: string }> = [];
   private options: Required<Pick<AppOptions, 'openapi' | 'docs' | 'metrics'>> & AppOptions;
@@ -142,15 +143,28 @@ export class NeoApp<Deps = Record<string, unknown>> {
   // 路由注册
   // ========================================================================
   /** 核心：Flask 式 app.route(path, ['GET','POST'], schema?, handler?) */
-  route<P extends RouteSchema | undefined = undefined, S extends RouteSchema = P extends RouteSchema ? P : RouteSchema>(
+  route<S extends RouteSchema>(
     path: string,
     methods: HttpMethod | HttpMethod[],
-    schemaOrHandler: S | RouteHandler<S, Deps>,
-    maybeHandler?: RouteHandler<S, Deps>,
+    schema: S,
+    handler: RouteHandler<S, Deps>,
+    routeOpts?: RouteOptions
+  ): this;
+  route(
+    path: string,
+    methods: HttpMethod | HttpMethod[],
+    handler: RouteHandler<any, Deps>,
+    routeOpts?: RouteOptions
+  ): this;
+  route(
+    path: string,
+    methods: HttpMethod | HttpMethod[],
+    schemaOrHandler: any,
+    maybeHandler?: any,
     routeOpts?: RouteOptions
   ): this {
-    const schema = (isFunction(schemaOrHandler) ? {} : schemaOrHandler) as S;
-    const handler = (isFunction(schemaOrHandler) ? schemaOrHandler : maybeHandler!) as RouteHandler<S, Deps>;
+    const schema = (isFunction(schemaOrHandler) ? {} : schemaOrHandler) as RouteSchema;
+    const handler = (isFunction(schemaOrHandler) ? schemaOrHandler : maybeHandler) as RouteHandler<any, Deps>;
     if (!handler && !isFunction(schemaOrHandler)) throw new Error('route handler required');
     this.registerRecord(path, methods, schema, handler, routeOpts);
     return this;
@@ -174,8 +188,11 @@ export class NeoApp<Deps = Record<string, unknown>> {
     if (opts?.summary) record.summary = opts.summary;
     if (opts?.description) record.description = opts.description;
     if (opts?.alias) record.alias = opts.alias;
+    if (schema.alias) record.alias = schema.alias;
+    if (opts?.middleware?.length) record.routeMw = opts.middleware;
+    // 组中间件在全局栈中已由 _groupUse 注册，保持简单
 
-    this.router.register(fullPath, mArr, record, opts?.alias);
+    this.router.register(fullPath, mArr, record, record.alias);
 
     // 记录 openapi
     this.routeRecords.push({
@@ -196,27 +213,32 @@ export class NeoApp<Deps = Record<string, unknown>> {
   }
 
   // =====================================================
-  // 便捷方法
+  // 便捷方法（带 schema 重载以获得 ctx 类型推断）
   // =====================================================
-  get<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    if (isFunction(schema)) return this.route(path, ['GET'], {}, schema);
-    return this.route(path, ['GET'], schema as S, handler as RouteHandler<S, Deps>);
+  get<S extends RouteSchema>(path: string, schema: S, handler: RouteHandler<S, Deps>): this;
+  get(path: string, handler: any): this;
+  get(path: string, schemaOrHandler: any, handler?: any): this {
+    return this.route(path, 'GET' as any, schemaOrHandler, handler);
   }
-  post<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    if (isFunction(schema)) return this.route(path, ['POST'], {}, schema);
-    return this.route(path, ['POST'], schema as S, handler as RouteHandler<S, Deps>);
+  post<S extends RouteSchema>(path: string, schema: S, handler: RouteHandler<S, Deps>): this;
+  post(path: string, handler: any): this;
+  post(path: string, schemaOrHandler: any, handler?: any): this {
+    return this.route(path, 'POST' as any, schemaOrHandler, handler);
   }
-  put<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    if (isFunction(schema)) return this.route(path, ['PUT'], {}, schema);
-    return this.route(path, ['PUT'], schema as S, handler as RouteHandler<S, Deps>);
+  put<S extends RouteSchema>(path: string, schema: S, handler: RouteHandler<S, Deps>): this;
+  put(path: string, handler: any): this;
+  put(path: string, schemaOrHandler: any, handler?: any): this {
+    return this.route(path, 'PUT' as any, schemaOrHandler, handler);
   }
-  patch<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    if (isFunction(schema)) return this.route(path, ['PATCH'], {}, schema);
-    return this.route(path, ['PATCH'], schema as S, handler as RouteHandler<S, Deps>);
+  patch<S extends RouteSchema>(path: string, schema: S, handler: RouteHandler<S, Deps>): this;
+  patch(path: string, handler: any): this;
+  patch(path: string, schemaOrHandler: any, handler?: any): this {
+    return this.route(path, 'PATCH' as any, schemaOrHandler, handler);
   }
-  delete<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    if (isFunction(schema)) return this.route(path, ['DELETE'], {}, schema);
-    return this.route(path, ['DELETE'], schema as S, handler as RouteHandler<S, Deps>);
+  delete<S extends RouteSchema>(path: string, schema: S, handler: RouteHandler<S, Deps>): this;
+  delete(path: string, handler: any): this;
+  delete(path: string, schemaOrHandler: any, handler?: any): this {
+    return this.route(path, 'DELETE' as any, schemaOrHandler, handler);
   }
   all(path: string, handler: RouteHandler<RouteSchema, Deps>): this {
     return this.route(path, HTTP_METHODS, {}, handler);
@@ -314,7 +336,7 @@ export class NeoApp<Deps = Record<string, unknown>> {
     if (opts.http2 && tls) {
       server = createHttp2SecureServer(tls, this.handleRequest as any) as any;
     } else if (tls) {
-      server = createSecureServer(tls, this.handleRequest) as any;
+      server = createSecureServer(tls as any, this.handleRequest) as any;
     } else {
       server = createHttpServer(this.handleRequest);
     }
@@ -440,14 +462,47 @@ export class NeoApp<Deps = Record<string, unknown>> {
     const requestId = (req.headers['x-request-id'] as string) || randomUUID();
     const ctx = new Context(req, res, requestId, this.options.baseUrl);
     const started = Date.now();
+    const path = ctx.url.pathname;
 
     try {
       // 解析 URL 路径
-      const path = ctx.url.pathname;
       const method = ctx.method as HttpMethod;
 
       // 1) 静态文件
       if (this.tryStatic(ctx, path)) return;
+
+      // 1.5) SSE 路由（同端口原生 SSE，共享全局中间件鉴权）
+      if (method === 'GET') {
+        const sseEntry = this.sseRoutes.get(normalizePath2(path));
+        if (sseEntry) {
+          const runner = compose([...this.globalMiddleware]);
+          let authErr: HttpError | null = null;
+          try {
+            await runner(ctx);
+            if (ctx.handled) return; // 中间件短路已应答
+          } catch (e) {
+            authErr = normalizeError(e);
+          }
+          if (authErr) {
+            ctx.res.statusCode = authErr.status;
+            ctx.res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            ctx.res.end(JSON.stringify({ ...authErr.toJSON(), requestId: ctx.requestId }));
+            this.afterRequest(ctx, path, 'GET', authErr.status, started);
+            return;
+          }
+          const stream = openSSE(res, { heartbeatMs: sseEntry.opts?.heartbeatMs });
+          (async () => {
+            try {
+              await sseEntry.handler(ctx, stream);
+            } catch (e) {
+              const hn = normalizeError(e);
+              stream.send({ error: hn.code, message: hn.expose ? hn.message : undefined, status: hn.status });
+            }
+          })();
+          this.afterRequest(ctx, path, 'GET', 200, started);
+          return;
+        }
+      }
 
       // 2) 路由解析
       let match;
@@ -479,7 +534,7 @@ export class NeoApp<Deps = Record<string, unknown>> {
       const stack: CtxMiddleware[] = [...this.globalMiddleware];
       if (route.routeMw?.length) stack.push(...route.routeMw);
 
-      const finalHandler = wrapHandler(route, ctx, this.depsResolver as any);
+      const finalHandler = wrapHandler(route, ctx, this.depsResolver as any, this.options.body);
 
       stack.push(async (c, next) => {
         void c;
@@ -531,7 +586,7 @@ export class NeoApp<Deps = Record<string, unknown>> {
   private handleError(ctx: Context, err: unknown): void {
     if (ctx.handled || ctx.res.writableEnded) return;
     const httpErr = normalizeError(err);
-    const body = { ...httpErr.toJSON(), requestId: ctx.requestId };
+    const body: Record<string, unknown> = { ...httpErr.toJSON(), requestId: ctx.requestId };
     let status = httpErr.status;
     try {
       ctx.res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -591,31 +646,31 @@ export class RouterGroup<Deps> {
     this.app._groupUse(mw);
     return this;
   }
-  route<P extends RouteSchema | undefined = undefined, S extends RouteSchema = P extends RouteSchema ? P : RouteSchema>(
+  route(
     path: string,
     methods: HttpMethod | HttpMethod[],
-    schemaOrHandler: S | RouteHandler<S, Deps>,
-    maybeHandler?: RouteHandler<S, Deps>
+    schemaOrHandler: any,
+    maybeHandler?: any
   ): this {
-    const schema = (isFunction(schemaOrHandler) ? {} : schemaOrHandler) as S;
-    const handler = (isFunction(schemaOrHandler) ? schemaOrHandler : maybeHandler!) as RouteHandler<S, Deps>;
+    const schema = (isFunction(schemaOrHandler) ? {} : schemaOrHandler) as RouteSchema;
+    const handler = (isFunction(schemaOrHandler) ? schemaOrHandler : maybeHandler) as RouteHandler<any, Deps>;
     this.app._groupRoute(this.prefix, this.tags, path, methods, schema, handler, {});
     return this;
   }
-  get<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    return this.route(path, ['GET'], schema as any, handler as any);
+  get(path: string, schema: any, handler?: any): this {
+    return this.route(path, ['GET'] as any, schema, handler);
   }
-  post<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    return this.route(path, ['POST'], schema as any, handler as any);
+  post(path: string, schema: any, handler?: any): this {
+    return this.route(path, ['POST'] as any, schema, handler);
   }
-  put<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    return this.route(path, ['PUT'], schema as any, handler as any);
+  put(path: string, schema: any, handler?: any): this {
+    return this.route(path, ['PUT'] as any, schema, handler);
   }
-  patch<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    return this.route(path, ['PATCH'], schema as any, handler as any);
+  patch(path: string, schema: any, handler?: any): this {
+    return this.route(path, ['PATCH'] as any, schema, handler);
   }
-  delete<S extends RouteSchema | undefined = undefined>(path: string, schema: S | RouteHandler<S, Deps>, handler?: RouteHandler<S, Deps>): this {
-    return this.route(path, ['DELETE'], schema as any, handler as any);
+  delete(path: string, schema: any, handler?: any): this {
+    return this.route(path, ['DELETE'] as any, schema, handler);
   }
   ws(path: string, spec: import('./ws').WsHandlerSpec): this {
     this.app.ws(this.join(this.prefix, path), spec);
@@ -653,7 +708,7 @@ interface RouteRecord {
 }
 
 /** 把 handler + schema 校验 + deps 注入 + 响应序列化包成一个中间件 */
-function wrapHandler(route: RouteRecord, ctx: Context, resolver?: DepsResolver<any>): () => Promise<void> {
+function wrapHandler(route: RouteRecord, ctx: Context, resolver: DepsResolver<any> | undefined, bodyOpts: BodyParseOptions | undefined): () => Promise<void> {
   return async () => {
     // 1) 参数校验
     if (route.schema?.params) {
@@ -672,23 +727,18 @@ function wrapHandler(route: RouteRecord, ctx: Context, resolver?: DepsResolver<a
       ctx.query = qout as any;
     }
     // 3) body 解析
-    let bodyParsed = false;
     if (route.schema?.body) {
-      const parsed = await parseBody(ctx.req, {});
+      const parsed = await parseBody(ctx.req, bodyOpts);
       ctx.markStreaming();
-      if (parsed.type === 'multipart' && parsed.value && (parsed.value as any).__binary) {
-        // 二进制
-      }
       ctx.body = route.schema.body.parse(
-        parsed.type === 'json' ? parsed.value : parsed.type === 'multipart' ? parsed.value : parsed.value,
+        parsed.type === 'multipart' && (parsed.value as any)?.__binary ? (parsed.value as any).__binary : parsed.value,
         ['body']
       ) as any;
-      bodyParsed = true;
     } else if (hasBody(ctx.method)) {
       // 非 GET，无显式 schema：宽松解析
-      const parsed = await parseBody(ctx.req, {});
+      const parsed = await parseBody(ctx.req, bodyOpts);
       ctx.markStreaming();
-      ctx.body = (parsed.type === 'json' ? parsed.value : parsed.value) as any;
+      ctx.body = parsed.value as any;
       if (parsed.type === 'multipart' && parsed.value && !(parsed.value as any).__binary) ctx.files = parsed.value as any;
     }
 
@@ -791,7 +841,7 @@ function isFileBasedTls(o: unknown): boolean {
 // HTTP2（同端口 ALPN 降级）
 function createHttp2SecureServer(tlsOpts: TlsOptions, handler: (req: any, res: any) => void) {
   const http2 = require('node:http2') as typeof import('node:http2');
-  return http2.createSecureServer({ ...tlsOpts, allowHTTP1: true }, handler);
+  return http2.createSecureServer({ ...(tlsOpts as any), allowHTTP1: true }, handler);
 }
 
 // 自签证书生成（仅测试用）

@@ -23,8 +23,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "prepublishOnly": "npm run build",
-    "test": "node --test dist/test/",
-    "start": "node dist/examples/simple.js"
+    "test": "node test/e2e.test.js",
+    "start": "node examples/server.js"
   },
   "keywords": ["http", "framework", "router", "websocket", "sse", "openapi", "middleware", "flask", "fastapi"],
   "dependencies": {},

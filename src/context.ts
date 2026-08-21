@@ -21,8 +21,8 @@ export class Context<
   readonly url: URL;
   readonly method: string;
   readonly started: number;
-  readonly params!: P;
-  readonly query!: Q;
+  params!: P;
+  query!: Q;
   /** 依赖注入结果 */
   state!: Record<string, unknown>;
   deps!: Deps;
@@ -209,7 +209,7 @@ export class Context<
     this._streamMode = true;
   }
   get handled(): boolean {
-    return this._handled || this.res.writableEnded || this._streamMode;
+    return this._handled || this.res.writableEnded;
   }
 
   get ip(): string {
