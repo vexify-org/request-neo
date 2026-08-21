@@ -28,6 +28,6 @@ export { NeoLogger, Logger, } from './logger';
 export { buildOpenApi, renderPrometheus, swaggerUiHtml, reDocHtml, createMetrics, } from './observability';
 export type { OpenApiRoute, MetricStore, OpenApiBuilderOptions } from './observability';
 export declare const NAME = "request-neo";
-export declare const VERSION = "2026.1.0";
+export declare const VERSION = "1.0.0";
 export declare const TAGLINE = "Powered By Vexify 2026";
 export default NeoApp;

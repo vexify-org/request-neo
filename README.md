@@ -180,7 +180,7 @@ Type passthrough: `Infer<typeof User>` / `InferShape<...>`.
 ```ts
 import { NeoApp, t, HttpError } from 'request-neo';
 
-const app = new NeoApp({ cors: true, openapi: { title: 'demo', version: '2026.1.0' } });
+const app = new NeoApp({ cors: true, openapi: { title: 'demo', version: '1.0.0' } });
 
 // Onion middleware
 app.use(async (ctx, next) => {

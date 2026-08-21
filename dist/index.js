@@ -67,6 +67,6 @@ Object.defineProperty(exports, "reDocHtml", { enumerable: true, get: function ()
 Object.defineProperty(exports, "createMetrics", { enumerable: true, get: function () { return observability_1.createMetrics; } });
 // 包元信息
 exports.NAME = 'request-neo';
-exports.VERSION = '2026.1.0';
+exports.VERSION = '1.0.0';
 exports.TAGLINE = 'Powered By Vexify 2026';
 exports.default = app_1.NeoApp;

@@ -1,7 +1,7 @@
 {
   "name": "request-neo",
-  "version": "2026.1.0",
-  "description": "Powered By Vexify 2026. Flask/FastAPI 味的 Node.js HTTP 框架：协议、路由、校验、中间件、实时、安全、可观测一体。",
+  "version": "1.0.0",
+  "description": "A Flask/FastAPI-flavored Node.js HTTP framework: protocol, routing, validation, middleware, real-time (WebSocket & SSE), security, and observability. Powered By Vexify 2026.",
   "license": "Apache-2.0",
   "type": "commonjs",
   "main": "./dist/index.js",
