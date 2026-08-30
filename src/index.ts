@@ -79,6 +79,12 @@ export {
 } from './logger';
 
 export {
+  RedisSessionStore,
+  RedisRateLimitStore,
+} from './stores';
+export type { RedisLike, RedisStoreOptions } from './stores';
+
+export {
   buildOpenApi,
   renderPrometheus,
   swaggerUiHtml,

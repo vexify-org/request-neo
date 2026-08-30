@@ -25,6 +25,8 @@ export type { WsConnection, WsMessage, WsHandlerSpec, WsHandleOp } from './ws';
 export * from './security';
 export type { CorsOptions, SecurityHeadersOptions, JwtOptions, SessionOptions, SessionStore, MemorySessionStore, RateLimitOptions, RateLimitStore, CsrfOptions, } from './security';
 export { NeoLogger, Logger, } from './logger';
+export { RedisSessionStore, RedisRateLimitStore, } from './stores';
+export type { RedisLike, RedisStoreOptions } from './stores';
 export { buildOpenApi, renderPrometheus, swaggerUiHtml, reDocHtml, createMetrics, } from './observability';
 export type { OpenApiRoute, MetricStore, OpenApiBuilderOptions } from './observability';
 export declare const NAME = "request-neo";

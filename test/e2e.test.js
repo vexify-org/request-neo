@@ -1,6 +1,6 @@
 // 回归测试：端到端验证 request-neo 各层能力。
 const assert = require('node:assert');
-const { NeoApp, t, HttpError, signJwt } = require('../dist/index');
+const { NeoApp, t, HttpError, signJwt, RedisSessionStore, RedisRateLimitStore } = require('../dist/index');
 const http = require('node:http');
 
 let pass = 0, fail = 0;
@@ -102,8 +102,62 @@ async function main() {
   } finally {
     server.close();
   }
+
+  await testStores();
+  await testGracefulClose();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
+}
+
+/** 内存桩 Redis 客户端，模拟 node-redis/ioredis 的最小命令 */
+function mockRedis() {
+  const map = new Map();
+  return {
+    map,
+    async get(k) { return map.has(k) ? map.get(k) : null; },
+    async set(k, v, mode, ttl) { map.set(k, v); if (mode === 'PX' && ttl) this._ttl = { k, ttl }; },
+    async del(...ks) { for (const k of ks) map.delete(k); },
+    async incr(k) { const n = (Number(map.get(k)) || 0) + 1; map.set(k, String(n)); return n; },
+    async expire(k, s) { this._exp = { k, s }; },
+  };
+}
+
+async function testStores() {
+  // RedisSessionStore
+  const client = mockRedis();
+  const ss = new RedisSessionStore({ client, prefix: 't' });
+  await ss.set('abc', { user: 1 }, 60000);
+  const got = await ss.get('abc');
+  check('RedisSessionStore set/get', got && got.user === 1, JSON.stringify(got));
+  check('RedisSessionStore persist as JSON', client.map.get('t:session:abc') === '{"user":1}');
+  await ss.destroy('abc');
+  check('RedisSessionStore destroy', (await ss.get('abc')) === null);
+  check('RedisSessionStore missing -> null', (await ss.get('missing')) === null);
+
+  // RedisRateLimitStore 固定窗口
+  const rl = new RedisRateLimitStore({ client, prefix: 't' });
+  const a = await rl.incr('ip:1', 60000);
+  const b = await rl.incr('ip:1', 60000);
+  check('RedisRateLimitStore fixed incr', a.count === 1 && b.count === 2, JSON.stringify([a, b]));
+  check('RedisRateLimitStore resetAt future', b.resetAt > Date.now());
+}
+
+async function testGracefulClose() {
+  const app = new NeoApp({ log: { level: 'error' } });
+  app.get('/ok', (ctx) => ctx.json({ ok: true }));
+  const server = app.listen(0);
+  await new Promise((res) => server.once('listening', res));
+  const port = server.address().port;
+  const ok = await req(port, { path: '/ok' });
+  check('pre-close request works', ok.status === 200);
+  await new Promise((res) => app.close(res));
+  // close 后新连接应被拒绝
+  let refused = false;
+  await new Promise((r) => {
+    const sock = http.get({ port, hostname: '127.0.0.1', path: '/ok' }, () => { r(); });
+    sock.on('error', () => { refused = true; r(); });
+  });
+  check('close() refuses new conns', refused === true);
 }
 
 main().catch((e) => { console.error('FATAL', e); process.exit(1); });

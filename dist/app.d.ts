@@ -143,6 +143,7 @@ export declare class NeoApp<Deps = Record<string, unknown>> {
     private handleError;
     private afterRequest;
     getOpenApi(): Record<string, unknown>;
+    close(callback?: (err?: Error) => void): this;
 }
 export declare class RouterGroup<Deps> {
     private app;

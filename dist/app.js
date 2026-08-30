@@ -441,6 +441,11 @@ class NeoApp {
             this.afterRequest(ctx, path, method, ctx.status, started);
         }
         catch (err) {
+            // 客户端已断开：不发响应、不记录 500（避免日志噪音）
+            if (res.destroyed || res.writableEnded) {
+                this.afterRequest(ctx, path, ctx.method, 499, started, true);
+                return;
+            }
             this.handleError(ctx, err);
             this.afterRequest(ctx, path, ctx.method, ctx.status, started);
         }
@@ -502,8 +507,13 @@ class NeoApp {
             logger_1.NeoLogger.getDefault().error('request error', { err: httpErr, ip: ctx.ip });
         }
     }
-    afterRequest(ctx, route, method, status, started) {
+    afterRequest(ctx, route, method, status, started, aborted = false) {
         const ms = Date.now() - started;
+        // 客户端断开：不统计进指标与访问日志，仅在最上级记录一次 debug
+        if (aborted) {
+            logger_1.NeoLogger.getDefault().debug('request aborted', { route, method, durationMs: ms, ip: ctx.ip, requestId: ctx.requestId });
+            return;
+        }
         // metrics
         if (this.options.metrics) {
             const key = `${method}|${route}|${status}`;
@@ -521,6 +531,20 @@ class NeoApp {
     // OpenAPI 提取
     getOpenApi() {
         return this.buildOpenAPI();
+    }
+    // ========================================================================
+    // 优雅关闭：停止接收新连接，等待在途请求完成（可选超时）
+    // ========================================================================
+    close(callback) {
+        const server = this.server;
+        if (!server) {
+            if (callback)
+                callback();
+            return this;
+        }
+        server.close(callback);
+        // WS/SSE 等活动连接由用户在中层自行关闭；HTTP 在途请求会在结束时正常响应
+        return this;
     }
 }
 exports.NeoApp = NeoApp;
